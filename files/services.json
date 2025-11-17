@@ -1,0 +1,32 @@
+{
+  "headline": "We'll Be Back Shortly",
+  "tagline": "Our platform is currently undergoing essential maintenance to enhance your experience.",
+  "status_label": "SERVICE UNAVAILABLE",
+  "services": [
+    {
+      "name": "Web Panel",
+      "description": "The web control panel is in read-only mode.",
+      "status": "outage"
+    },
+    {
+      "name": "API",
+      "description": "Some API endpoints are returning errors.",
+      "status": "outage"
+    },
+    {
+      "name": "Authentication",
+      "description": "Login delays and token refreshes are degraded.",
+      "status": "degraded"
+    },
+    {
+      "name": "CDN",
+      "description": "Static assets are operational.",
+      "status": "operational"
+    }
+  ],
+  "next_steps": [
+    {"action": "Investigating root cause with priority.", "eta": "1-2 hours"},
+    {"action": "Apply fix and validate across regions.", "eta": "TBD"},
+    {"action": "Monitor for recurrence and update status.", "eta": "TBD"}
+  ]
+}
