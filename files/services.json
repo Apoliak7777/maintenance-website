@@ -2,6 +2,11 @@
   "headline": "We'll Be Back Shortly",
   "tagline": "Our platform is currently undergoing essential maintenance to enhance your experience.",
   "status_label": "SERVICE UNAVAILABLE",
+  "countdown_target": "",
+  "progress_percent": 45,
+  "auto_refresh_seconds": 300,
+  "contact_email": "",
+  "contact_url": "",
   "services": [
     {
       "name": "Web Panel",
