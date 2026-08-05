@@ -86,9 +86,9 @@ curl -i http://127.0.0.1:8000/
 
 ### Nasadenie na server
 
-1. Skopírujte **obsah priečinka `files/`** (`index.php`, `services.json`, `styles.css`) do document rootu, ktorý vie spúšťať PHP (Apache + PHP-FPM, nginx + PHP-FPM, LiteSpeed, bežný shared hosting).
+1. Skopírujte `index.php`, `services.json` a `styles.css` do document rootu, ktorý vie spúšťať PHP (Apache + PHP-FPM, nginx + PHP-FPM, LiteSpeed, bežný shared hosting).
 2. Pridajte vlastné rewrite / redirect pravidlo, ktoré počas odstávky nasmeruje všetku prevádzku na tento `index.php`.
-3. Upravte `files/services.json` a načítajte stránku znova - reštart ani mazanie cache nie je potrebné.
+3. Upravte `services.json` a načítajte stránku znova - reštart ani mazanie cache nie je potrebné.
 
 > [!IMPORTANT]
 > Repozitár neobsahuje `.htaccess`, nginx snippet ani deploy skript. Samotné nakopírovanie súborov web do maintenance režimu neprepne - presmerovanie prevádzky si musíte napísať sami.
@@ -99,24 +99,28 @@ curl -i http://127.0.0.1:8000/
 
 ```text
 maintenance-website/
-├── files/                  # nasaditeľná jednotka - toto ide do document rootu
-│   ├── index.php           # celá aplikácia (274 riadkov): defaulty, načítanie JSON,
-│   │                       # esc()/badgeModifier(), 503 hlavičky, HTML šablóna, inline JS
-│   ├── services.json       # jediný konfiguračný súbor, číta sa pri každom requeste
-│   └── styles.css          # 720 riadkov témy: tokeny, pozadie, karty, badge, 6x @keyframes
+├── index.php               # PHP verzia (274 riadkov): defaulty, načítanie JSON,
+│                           # esc()/badgeModifier(), 503 hlavičky, HTML šablóna, inline JS
+├── index.html              # statická verzia: rovnaká stránka, JSON sa načíta v prehliadači
+├── services.json           # jediný konfiguračný súbor, číta ho PHP aj statická verzia
+├── styles.css              # 720 riadkov témy: tokeny, pozadie, karty, badge, 6x @keyframes
 ├── LICENSE                 # plný text GNU GPL-3.0
 ├── README.md               # tento súbor
 └── README.en.md            # anglická verzia
 ```
 
 > [!TIP]
-> Root repozitára **nemá** vlastný `index.php`. Nasaditeľná jednotka je priečinok `files/`. `styles.css` je linkovaný relatívne (`href="styles.css"`), takže musí zostať v rovnakom adresári ako `index.php`.
+> Sú tu **dva vstupné body, ktoré vykresľujú tú istú stránku**. `index.php` renderuje na
+> serveri a posiela hlavičky `503` + `Retry-After` - to je verzia pre skutočnú odstávku.
+> `index.html` je statická verzia: `services.json` si načíta v prehliadači cez `fetch`,
+> takže funguje aj na hostingu bez PHP (GitHub Pages). Statická verzia **nevie** poslať
+> stavový kód `503`. `styles.css` je linkovaný relatívne, takže musí zostať vedľa nich.
 
 ---
 
 ## ⚙️ Konfigurácia
 
-Všetko sa nastavuje v `files/services.json`.
+Všetko sa nastavuje v `services.json`.
 
 | Kľúč                   | Typ    | Efekt                                                                                                          |
 | ---------------------- | ------ | -------------------------------------------------------------------------------------------------------------- |

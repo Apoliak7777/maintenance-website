@@ -86,9 +86,9 @@ curl -i http://127.0.0.1:8000/
 
 ### Deploying to a server
 
-1. Copy the **contents of the `files/` folder** (`index.php`, `services.json`, `styles.css`) into a document root capable of running PHP (Apache + PHP-FPM, nginx + PHP-FPM, LiteSpeed, ordinary shared hosting).
+1. Copy `index.php`, `services.json` and `styles.css` into a document root capable of running PHP (Apache + PHP-FPM, nginx + PHP-FPM, LiteSpeed, ordinary shared hosting).
 2. Add your own rewrite / redirect rule that routes all traffic to this `index.php` during the maintenance window.
-3. Edit `files/services.json` and reload the page - no restart and no cache purge required.
+3. Edit `services.json` and reload the page - no restart and no cache purge required.
 
 > [!IMPORTANT]
 > The repository does not contain an `.htaccess`, an nginx snippet or a deploy script. Merely copying the files will not switch your site into maintenance mode - you have to write the traffic redirection yourself.
@@ -99,24 +99,28 @@ curl -i http://127.0.0.1:8000/
 
 ```text
 maintenance-website/
-├── files/                  # the deployable unit - this is what goes into the document root
-│   ├── index.php           # the whole application (274 lines): defaults, JSON loading,
-│   │                       # esc()/badgeModifier(), 503 headers, HTML template, inline JS
-│   ├── services.json       # the single configuration file, read on every request
-│   └── styles.css          # 720 lines of theme: tokens, background, cards, badges, 6x @keyframes
+├── index.php               # PHP version (274 lines): defaults, JSON loading,
+│                           # esc()/badgeModifier(), 503 headers, HTML template, inline JS
+├── index.html              # static version: same page, JSON is loaded in the browser
+├── services.json           # the single config file, read by both versions
+├── styles.css              # 720 lines of theme: tokens, background, cards, badges, 6x @keyframes
 ├── LICENSE                 # full text of the GNU GPL-3.0
-├── README.md               # Slovak version
+├── README.md               # the Slovak version
 └── README.en.md            # this file
 ```
 
 > [!TIP]
-> The repository root does **not** have its own `index.php`. The deployable unit is the `files/` folder. `styles.css` is linked relatively (`href="styles.css"`), so it must stay in the same directory as `index.php`.
+> There are **two entry points rendering the same page**. `index.php` renders on the
+> server and sends `503` + `Retry-After` headers - that is the version for a real outage.
+> `index.html` is the static version: it loads `services.json` in the browser via `fetch`,
+> so it also works on hosting without PHP (GitHub Pages). The static version **cannot**
+> send a `503` status code. `styles.css` is linked relatively, so it must sit next to them.
 
 ---
 
 ## ⚙️ Configuration
 
-Everything is configured in `files/services.json`.
+Everything is configured in `services.json`.
 
 | Key                    | Type   | Effect                                                                                                           |
 | ---------------------- | ------ | ---------------------------------------------------------------------------------------------------------------- |
