@@ -1,274 +1,214 @@
 <?php
-// ============================================================
-//  Maintenance Page — Premium Dark Glassmorphism
-//  Reads configuration from services.json in the same directory.
-// ============================================================
+/**
+ * Maintenance Website — PHP entry point
+ * https://github.com/Apoliak7777/maintenance-website
+ *
+ * Answers with a real "503 Service Unavailable" (plus Retry-After and no-cache
+ * headers) and serves index.html as one self-contained response: services.json,
+ * styles.css, app.js and the icon are inlined, so it works from any URL the
+ * maintenance rewrite sends here. Headline, tagline, status label, message and
+ * brand are filled in on the server too, so the page says the right thing even
+ * without JavaScript. Everything visual lives in index.html, styles.css and
+ * app.js, which is why the PHP and the static version always look the same.
+ *
+ * Requires PHP 7.2 or newer, no extensions beyond the core.
+ */
 
-$servicesFile = __DIR__ . '/services.json';
-$data = [
-    'headline'             => "We'll Be Back Shortly",
-    'tagline'              => 'Our platform is currently undergoing essential maintenance to enhance your experience.',
-    'status_label'         => 'SERVICE UNAVAILABLE',
-    'services'             => [],
-    'next_steps'           => [],
-    'countdown_target'     => '',
-    'progress_percent'     => 0,
-    'auto_refresh_seconds' => 300,
-    'contact_email'        => '',
-    'contact_url'          => '',
-];
+declare(strict_types=1);
 
-$lastUpdated = time();
+$configFile   = __DIR__ . '/services.json';
+$templateFile = __DIR__ . '/index.html';
 
-if (file_exists($servicesFile)) {
-    $json   = @file_get_contents($servicesFile);
-    $parsed = @json_decode($json, true);
+/* ------------------------------------------------------------- helpers */
+
+function esc($value): string
+{
+    return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+/** A config value as trimmed text, or null when the key is missing. */
+function configText(array $config, string $key): ?string
+{
+    if (!array_key_exists($key, $config) || $config[$key] === null) {
+        return null;
+    }
+    return is_scalar($config[$key]) && !is_bool($config[$key]) ? trim((string) $config[$key]) : '';
+}
+
+/** Same rules as app.js: false or <= 0 turns it off, otherwise at least 60 s. */
+function refreshSeconds($value): int
+{
+    if ($value === false) {
+        return 0;
+    }
+    if (!is_numeric($value)) {
+        return 300;
+    }
+    $seconds = (int) round((float) $value);
+    return $seconds <= 0 ? 0 : max(60, $seconds);
+}
+
+/** Replaces the content of the element marked data-slot="$name". */
+function fillSlot(string $html, string $name, string $innerHtml): string
+{
+    $pattern = '/(<([a-z][a-z0-9]*)\b[^>]*\bdata-slot="' . preg_quote($name, '/') . '"[^>]*>).*?(<\/\2>)/s';
+    $result = preg_replace_callback($pattern, function (array $m) use ($innerHtml): string {
+        return $m[1] . $innerHtml . $m[3];
+    }, $html, 1);
+    return $result === null ? $html : $result;
+}
+
+function replaceOnce(string $html, string $pattern, string $replacement): string
+{
+    $result = preg_replace_callback($pattern, function () use ($replacement): string {
+        return $replacement;
+    }, $html, 1);
+    return $result === null ? $html : $result;
+}
+
+/* -------------------------------------------------------------- config */
+
+$config    = [];
+$updatedAt = time();
+
+if (is_readable($configFile)) {
+    $parsed = json_decode((string) file_get_contents($configFile), true);
     if (is_array($parsed)) {
-        $data = array_merge($data, $parsed);
+        $config = $parsed;
+    } else {
+        error_log('maintenance-website: services.json is not valid JSON, showing the defaults.');
     }
-    $lastUpdated = filemtime($servicesFile);
+    $updatedAt = filemtime($configFile) ?: time();
 }
 
-function esc($s) {
-    return htmlspecialchars((string)$s, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+if (empty($config['updated_at'])) {
+    $config['updated_at'] = gmdate('c', $updatedAt);
 }
 
-function badgeModifier($status) {
-    switch (strtolower($status)) {
-        case 'outage':      return 'outage';
-        case 'degraded':    return 'degraded';
-        case 'operational': return 'operational';
-        default:            return 'unknown';
+/* ------------------------------------------------------------- headers */
+
+// When to come back: the countdown target if it is still ahead, otherwise in an hour.
+$retryAfter = 3600;
+if (!empty($config['countdown_target']) && is_string($config['countdown_target'])) {
+    $target = strtotime($config['countdown_target']);
+    if ($target !== false && $target > time()) {
+        $retryAfter = max(60, $target - time());
     }
 }
 
-date_default_timezone_set('UTC');
-
-// Send proper maintenance headers
 http_response_code(503);
-header('Retry-After: 3600');
+header('Retry-After: ' . $retryAfter);
 header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Content-Type: text/html; charset=utf-8');
+header('X-Robots-Tag: noindex, nofollow');
 
-$progressPercent     = max(0, min(100, (int)$data['progress_percent']));
-$hasCountdown        = !empty($data['countdown_target']);
-$hasProgress         = $progressPercent > 0;
-$hasContact          = !empty($data['contact_email']) || !empty($data['contact_url']);
-$autoRefreshSeconds  = max(60, (int)$data['auto_refresh_seconds']);
-?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex, nofollow" />
-    <meta name="description" content="<?php echo esc($data['tagline']); ?>" />
-    <meta property="og:title" content="<?php echo esc($data['headline']); ?> — Maintenance" />
-    <meta property="og:description" content="<?php echo esc($data['tagline']); ?>" />
-    <title><?php echo esc($data['headline']); ?> — Maintenance</title>
+/* ---------------------------------------------------------------- page */
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+$html = is_readable($templateFile) ? file_get_contents($templateFile) : false;
+if ($html === false) {
+    // index.html is missing: still answer with a readable maintenance page.
+    echo '<!doctype html><meta charset="utf-8"><title>Maintenance</title>',
+         '<h1>We&#39;ll be back shortly</h1><p>The site is down for maintenance.</p>';
+    exit;
+}
 
-    <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
+$lang = strtolower((string) configText($config, 'lang'));
+if (preg_match('/^[a-z]{2}$/', $lang)) {
+    $html = replaceOnce($html, '/<html lang="[^"]*"/', '<html lang="' . $lang . '"');
+}
 
-    <!-- Animated background -->
-    <div class="bg-layer" aria-hidden="true">
-        <div class="bg-orb bg-orb--1"></div>
-        <div class="bg-orb bg-orb--2"></div>
-        <div class="bg-orb bg-orb--3"></div>
-    </div>
-    <div class="bg-grid" aria-hidden="true"></div>
+$brand = configText($config, 'brand_name');
+if ($brand !== null && $brand !== '') {
+    $html = str_replace(
+        ['<div class="brand" id="brand" data-slot="brand_name" hidden></div>',
+         '<p class="site-footer__brand" data-slot="footer_brand"></p>'],
+        ['<div class="brand" id="brand" data-slot="brand_name">' . esc($brand) . '</div>',
+         '<p class="site-footer__brand" data-slot="footer_brand">' . esc($brand) . '</p>'],
+        $html
+    );
+}
 
-    <main class="page-wrap">
+$footerText = configText($config, 'footer_text');
+if ($footerText !== null && $footerText !== '') {
+    $html = str_replace(
+        '<p class="site-footer__text" data-slot="footer_text" hidden></p>',
+        '<p class="site-footer__text" data-slot="footer_text">' . esc($footerText) . '</p>',
+        $html
+    );
+}
 
-        <!-- ===== Hero ===== -->
-        <header class="hero">
-            <div class="hero__icon" aria-hidden="true">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.049.58.025 1.193-.14 1.743" />
-                </svg>
-            </div>
+// The photo next to the headline: only http(s) addresses or plain relative paths.
+$image = configText($config, 'image_url');
+if ($image !== null && preg_match('#^(https?://[^\s"<>]+|[A-Za-z0-9._~/-][A-Za-z0-9._~/%?=&+-]*)$#', $image)
+    && !preg_match('#^//#', $image)) {
+    $alt  = (string) configText($config, 'image_alt');
+    $html = str_replace(
+        ['<section class="hero" id="hero"',
+         '<div class="hero__media" id="hero-media" hidden></div>'],
+        ['<section class="hero hero--media" id="hero"',
+         '<div class="hero__media" id="hero-media"><img src="' . esc($image) . '" alt="' . esc($alt) . '" decoding="async"></div>'],
+        $html
+    );
+}
 
-            <div class="hero__pill">
-                <span class="hero__pill-dot"></span>
-                <?php echo esc($data['status_label']); ?>
-            </div>
+$headline = configText($config, 'headline');
+if ($headline !== null && $headline !== '') {
+    $title = $headline . ' — ' . ($brand ?: 'Maintenance');
+    $html  = fillSlot($html, 'headline', esc($headline));
+    $html  = replaceOnce($html, '/<title>.*?<\/title>/s', '<title>' . esc($title) . '</title>');
+    $html  = replaceOnce($html, '/<meta property="og:title" content="[^"]*">/', '<meta property="og:title" content="' . esc($title) . '">');
+}
 
-            <h1 class="hero__headline"><?php echo esc($data['headline']); ?></h1>
-            <p class="hero__tagline"><?php echo esc($data['tagline']); ?></p>
+// An empty status label keeps the default text in the banner; empty tagline or message hide them.
+foreach (['status_label', 'tagline', 'message'] as $key) {
+    $value = configText($config, $key);
+    if ($value !== null && ($value !== '' || $key !== 'status_label')) {
+        $html = fillSlot($html, $key, esc($value));
+    }
+}
 
-            <?php if ($hasCountdown): ?>
-            <!-- Countdown Timer -->
-            <div class="countdown" id="countdown" data-target="<?php echo esc($data['countdown_target']); ?>">
-                <div class="countdown__block">
-                    <span class="countdown__number" id="cd-hours">--</span>
-                    <span class="countdown__label">Hours</span>
-                </div>
-                <div class="countdown__block">
-                    <span class="countdown__number" id="cd-minutes">--</span>
-                    <span class="countdown__label">Minutes</span>
-                </div>
-                <div class="countdown__block">
-                    <span class="countdown__number" id="cd-seconds">--</span>
-                    <span class="countdown__label">Seconds</span>
-                </div>
-            </div>
-            <?php endif; ?>
-        </header>
+$tagline = configText($config, 'tagline');
+if ($tagline !== null && $tagline !== '') {
+    $html = replaceOnce($html, '/<meta name="description" content="[^"]*">/', '<meta name="description" content="' . esc($tagline) . '">');
+    $html = replaceOnce($html, '/<meta property="og:description" content="[^"]*">/', '<meta property="og:description" content="' . esc($tagline) . '">');
+}
 
-        <!-- ===== Progress ===== -->
-        <?php if ($hasProgress): ?>
-        <section class="progress-section">
-            <div class="glass-card">
-                <div class="section-header">
-                    <span class="section-label">Current Status</span>
-                    <span class="section-label"><?php echo $progressPercent; ?>% Complete</span>
-                </div>
-                <p class="progress-message">
-                    We sincerely apologize for any inconvenience. Our engineering team is working diligently to restore full service.
-                </p>
-                <div class="progress-bar-wrap">
-                    <div class="progress-bar-fill" style="width: <?php echo $progressPercent; ?>%"></div>
-                </div>
-                <div class="progress-meta">
-                    <span class="progress-percent">Maintenance in progress</span>
-                    <span class="progress-updated">Updated <?php echo date('M j, g:i A T', $lastUpdated); ?></span>
-                </div>
-            </div>
-        </section>
-        <?php else: ?>
-        <section class="progress-section">
-            <div class="glass-card">
-                <div class="section-header">
-                    <span class="section-label">Current Status</span>
-                </div>
-                <p class="progress-message">
-                    We sincerely apologize for any inconvenience. Our engineering team is working diligently to restore full service.
-                </p>
-                <div class="progress-meta">
-                    <span class="progress-percent">Maintenance in progress</span>
-                    <span class="progress-updated">Updated <?php echo date('M j, g:i A T', $lastUpdated); ?></span>
-                </div>
-            </div>
-        </section>
-        <?php endif; ?>
+// Reload fallback for visitors without JavaScript.
+$refresh  = refreshSeconds(array_key_exists('auto_refresh_seconds', $config) ? $config['auto_refresh_seconds'] : null);
+$noscript = $refresh > 0 ? '<noscript><meta http-equiv="refresh" content="' . $refresh . '"></noscript>' : '';
+$html     = str_replace('<noscript><meta http-equiv="refresh" content="300"></noscript>', $noscript, $html);
 
-        <!-- ===== Affected Services ===== -->
-        <?php if (!empty($data['services'])): ?>
-        <section class="services-section">
-            <div class="glass-card">
-                <h2 class="section-title">Affected Services</h2>
-                <div class="services-grid">
-                    <?php foreach ($data['services'] as $i => $s):
-                        $mod = badgeModifier($s['status'] ?? 'unknown');
-                    ?>
-                    <div class="service-row">
-                        <div class="service-info">
-                            <div class="service-name"><?php echo esc($s['name'] ?? 'Unnamed Service'); ?></div>
-                            <div class="service-desc"><?php echo esc($s['description'] ?? 'No description provided.'); ?></div>
-                        </div>
-                        <span class="service-badge service-badge--<?php echo $mod; ?>">
-                            <span class="service-badge__dot"></span>
-                            <?php echo esc(strtoupper($s['status'] ?? 'UNKNOWN')); ?>
-                        </span>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </section>
-        <?php endif; ?>
+// Inline the stylesheet, the script and the icon. The maintenance rewrite can send any URL
+// here (/shop/cart, /blog/post), where relative links to styles.css would break; inlined,
+// the page renders from every path and needs no further requests to a busy server.
+$assets = [
+    '<link rel="stylesheet" href="styles.css">' => ['styles.css', '<style>', '</style>'],
+    '<script src="app.js"></script>'            => ['app.js', '<script>', '</script>'],
+];
+foreach ($assets as $tag => $asset) {
+    $file = __DIR__ . '/' . $asset[0];
+    $code = is_readable($file) ? (string) file_get_contents($file) : '';
+    if ($code !== '' && stripos($code, $asset[2]) === false) {
+        $html = str_replace($tag, $asset[1] . "\n" . $code . $asset[2], $html);
+    }
+}
+$iconFile = __DIR__ . '/favicon.svg';
+if (is_readable($iconFile)) {
+    $icon = base64_encode((string) file_get_contents($iconFile));
+    $html = str_replace('href="favicon.svg"', 'href="data:image/svg+xml;base64,' . $icon . '"', $html);
+}
 
-        <!-- ===== Timeline — What Happens Next ===== -->
-        <?php if (!empty($data['next_steps'])): ?>
-        <section class="timeline-section">
-            <div class="glass-card">
-                <h2 class="section-title">What Happens Next</h2>
-                <div class="timeline">
-                    <?php foreach ($data['next_steps'] as $step): ?>
-                    <div class="timeline-item">
-                        <div class="timeline-item__content">
-                            <span class="timeline-item__action"><?php echo esc($step['action'] ?? 'Pending'); ?></span>
-                            <span class="timeline-item__eta">ETA: <?php echo esc($step['eta'] ?? 'TBD'); ?></span>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </section>
-        <?php endif; ?>
+// The whole config goes to app.js inline; JSON_HEX_TAG keeps "</script>" from closing the tag.
+$flags = JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+       | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE;
+$json  = json_encode($config, $flags);
+if ($json === false) {
+    $json = '{}';
+}
+$html = str_replace(
+    '<!-- maintenance:config -->',
+    '<script id="maintenance-config" type="application/json">' . $json . '</script>',
+    $html
+);
 
-        <!-- ===== Footer ===== -->
-        <footer class="page-footer">
-            <hr class="footer-divider" />
-            <p class="footer-thanks">Thank you for your patience. We'll be back as soon as possible.</p>
-
-            <?php if ($hasContact): ?>
-            <div class="footer-contact">
-                <?php if (!empty($data['contact_email'])): ?>
-                    <a href="mailto:<?php echo esc($data['contact_email']); ?>"><?php echo esc($data['contact_email']); ?></a>
-                <?php endif; ?>
-                <?php if (!empty($data['contact_url'])): ?>
-                    <a href="<?php echo esc($data['contact_url']); ?>" target="_blank" rel="noopener">Status Page ↗</a>
-                <?php endif; ?>
-            </div>
-            <?php endif; ?>
-
-            <div class="footer-meta">
-                <span>Last updated: <?php echo date('F j, Y — g:i A T', $lastUpdated); ?></span>
-                <span class="footer-meta__dot"></span>
-                <span class="auto-refresh-badge">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M20.984 4.356v4.993" />
-                    </svg>
-                    Auto-refresh in <span id="refresh-timer"><?php echo $autoRefreshSeconds; ?></span>s
-                </span>
-            </div>
-        </footer>
-
-    </main>
-
-    <script>
-    (function() {
-        'use strict';
-
-        // ---- Countdown Timer ----
-        var cdEl = document.getElementById('countdown');
-        if (cdEl) {
-            var target = new Date(cdEl.dataset.target).getTime();
-            if (!isNaN(target)) {
-                function updateCountdown() {
-                    var now  = Date.now();
-                    var diff = Math.max(0, target - now);
-                    var h = Math.floor(diff / 3600000);
-                    var m = Math.floor((diff % 3600000) / 60000);
-                    var s = Math.floor((diff % 60000) / 1000);
-                    document.getElementById('cd-hours').textContent   = String(h).padStart(2, '0');
-                    document.getElementById('cd-minutes').textContent = String(m).padStart(2, '0');
-                    document.getElementById('cd-seconds').textContent = String(s).padStart(2, '0');
-                    if (diff <= 0) { location.reload(); }
-                }
-                updateCountdown();
-                setInterval(updateCountdown, 1000);
-            }
-        }
-
-        // ---- Auto-refresh countdown ----
-        var refreshSeconds = <?php echo $autoRefreshSeconds; ?>;
-        var refreshEl = document.getElementById('refresh-timer');
-        var remaining = refreshSeconds;
-
-        setInterval(function() {
-            remaining--;
-            if (refreshEl) refreshEl.textContent = remaining;
-            if (remaining <= 0) { location.reload(); }
-        }, 1000);
-
-    })();
-    </script>
-
-</body>
-</html>
+echo $html;

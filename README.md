@@ -8,14 +8,20 @@
 
 # 🚧 Maintenance Website
 
-**Elegantná jednostránková maintenance / status stránka v čistom PHP - nasadíte ju za minútu a spravujete jediným JSON súborom.**
+**Stránka pre odstávku a výpadok, ktorá vyzerá ako web skutočnej firmy. Celá sa riadi jedným JSON súborom a beží na PHP aj na statickom hostingu.**
 
-![PHP](https://img.shields.io/badge/PHP-7.0%2B-777BB4?style=flat-square&logo=php&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-7.2%2B-777BB4?style=flat-square&logo=php&logoColor=white)
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
 ![JSON](https://img.shields.io/badge/Config-JSON-000000?style=flat-square&logo=json&logoColor=white)
 ![License](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)
+
+**[Pozrieť živé demo →](https://apoliak7777.github.io/maintenance-website/?demo)**
+
+![Maintenance Website](docs/screenshot-light.jpg)
+
+<img src="docs/screenshot-dark.jpg" alt="Tmavý režim" width="68%">&nbsp;&nbsp;<img src="docs/screenshot-mobile.jpg" alt="Mobil" width="22%">
 
 </div>
 
@@ -37,61 +43,94 @@
 
 ## 🔍 Prehľad
 
-Maintenance Website je jediný PHP súbor, ktorý vykreslí tmavú „glassmorphism" stránku počas výpadku alebo plánovanej odstávky. Zobrazí nadpis, status pill, voliteľný odpočet, progress bar, zoznam dotknutých služieb s farebnými badge-mi, časovú os ďalších krokov a pätičku s kontaktmi a automatickým obnovením stránky.
+Maintenance Website je jednostránková stránka pre plánovanú odstávku alebo výpadok. Návštevník nevidí chybovú hlášku, ale stránku vašej firmy: stavový pás hore, hlavičku s telefónom a e-mailom, nadpis s fotkou, pás s najdôležitejšími údajmi (začiatok, predpokladaný koniec, hotovo, dotknuté služby), poslednú správu, stav služieb, postup prác, kontakt na podporu a tmavú pätu. Stránka sa sama obnovuje, takže keď web znova nabehne, návštevník je späť bez klikania.
 
-Kľúčový rozdiel oproti obyčajnej HTML stránke je v tom, že odpovedá kódom **HTTP 503 Service Unavailable** s hlavičkou `Retry-After`, takže vyhľadávače aj monitoring nástroje ju vyhodnotia ako skutočný výpadok, nie ako novú stránku vášho webu.
+Celá stránka je `index.html`, vzhľad je v `styles.css` a logika v `app.js`. Spustiť sa dá dvoma spôsobmi:
 
-Bez frameworku, bez databázy, bez build kroku a bez admin rozhrania - celý obsah sa mení editáciou súboru `services.json`, ktorý sa načítava pri každom requeste.
+| Vstup        | Hosting                                      | Čo robí                                                                                                   |
+| ------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `index.php`  | PHP (Apache, nginx + PHP-FPM, bežný hosting) | odpovie `503 Service Unavailable` s `Retry-After`, konfiguráciu, CSS, JS aj ikonu vloží priamo do stránky |
+| `index.html` | statický (GitHub Pages, Netlify, S3)         | `services.json` načíta v prehliadači; stavový kód 503 poslať nevie                                       |
+
+Obe verzie vyzerajú rovnako, lebo PHP verzia servíruje ten istý `index.html`. Obsah sa mení len v `services.json`, bez frameworku, databázy, build kroku aj admin rozhrania.
 
 ---
 
 ## ✨ Funkcie
 
-- 🛑 **Korektný 503 status** - odpoveď `503` + `Retry-After: 3600` + `Cache-Control: no-cache, no-store, must-revalidate` a `<meta name="robots" content="noindex, nofollow">`.
-- 🗂️ **Konfigurácia cez JSON** - všetok obsah pochádza zo `services.json`, ktorý sa cez `array_merge` mieša nad PHP defaulty; chýbajúci alebo poškodený súbor stránku nezhodí.
-- 🚦 **Stavy služieb** - štyri varianty badge-u: `outage` (červená), `degraded` (jantárová), `operational` (zelená) a šedý fallback `unknown` pre neznámy reťazec.
-- 📊 **Voliteľný progress bar** - `progress_percent` sa oreže do rozsahu 0-100; hodnota `0` bar skryje a vykreslí zjednodušenú status kartu.
-- ⏱️ **Odpočet do obnovenia** - JS countdown (hodiny / minúty / sekundy) podľa `countdown_target`; pri prázdnej hodnote sa blok vôbec nevykreslí.
-- 🔄 **Automatické obnovenie** - pätička odpočítava sekundy do `location.reload()`, serverovo s minimom 60 sekúnd (`max(60, ...)`).
-- 🧭 **Timeline „What Happens Next"** - kroky zo `next_steps`, každý s popisom akcie a ETA pill-om.
-- ✉️ **Kontaktný blok** - `mailto:` odkaz a externý odkaz na status page; ak nie sú vyplnené, pätička ich vynechá.
-- 🛡️ **Escapovanie výstupu** - všetok dynamický obsah prechádza cez `esc()` s `htmlspecialchars(ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`.
-- 🕒 **Reálny čas poslednej zmeny** - „Last updated" sa berie z `filemtime()` súboru `services.json`, časové pásmo je pevne UTC.
-- 💎 **Premium dizajn** - CSS custom properties, tri animované rozostrené orby, mriežkový overlay, gradientový text, shimmer na progress bare a rotujúci conic-gradient prstenec okolo ikony.
-- 📱 **Responzívny layout** - breakpoint na 640px preskladá riadky služieb, timeline aj pätičku pod seba; breakpoint na 380px už len zmenší nadpis a bloky odpočtu.
+- 🛑 **Skutočný 503** - `index.php` vracia `503`, `Retry-After` (do predpokladaného konca, inak 3600 s), `Cache-Control: no-store` a `X-Robots-Tag: noindex`, takže vyhľadávače aj monitoring vedia, že ide o dočasný výpadok.
+- 🟦 **Stavový pás** - farebný pás nad celou stránkou s textom stavu a časom poslednej aktualizácie („Aktualizované pred 5 minútami“).
+- 🏢 **Hlavička firmy** - názov alebo logo (`logo_url`) a vpravo telefón a e-mail na podporu.
+- 🖼️ **Nadpis s fotkou** - na počítači text vľavo a fotka vpravo až po okraj obrazovky, na mobile fotka pod textom. Bez fotky je úvod na celú šírku.
+- 📊 **Pás s faktami** - začiatok, predpokladaný koniec s odpočtom („Dnes · zostáva asi 1 h 32 min“), percento hotovej práce s pruhom a počet dotknutých služieb. Zobrazí sa len to, čo je vyplnené. Keď odhad vyprší počas návštevy, stránka sa raz obnoví; keď vypršal už pred ňou, ukáže „už každú chvíľu“ namiesto nekonečného obnovovania.
+- 🚦 **Stav služieb** - riadok pre každú službu s názvom, popisom a stavom. Päť stavov, každý s ikonou, farbou aj textom, takže sa dá čítať aj bez rozlišovania farieb.
+- 🗺️ **Postup prác** - kroky so stavom hotovo / prebieha / na rade a s odhadom času.
+- 📰 **Posledná správa** - vlastný text s presným dátumom a časom.
+- ☎️ **Kontakt na podporu** - veľký telefón, e-mail a odkaz na stavovú stránku; hore aj tlačidlá „Napísať podpore“ a „Stavová stránka“.
+- 🧾 **Tmavá päta** - názov firmy a vlastný riadok (`footer_text`), napríklad obchodné meno, adresa alebo IČO.
+- 🌗 **Svetlý aj tmavý režim** - predvolene svetlý, `theme` ho prepne na tmavý alebo podľa systému.
+- 🌍 **Slovenčina a angličtina** - `lang` prepne popisky aj formát dátumov. Ďalší jazyk sa pridá jedným blokom v `app.js`.
+- 🔄 **Šetrné obnovovanie** - päta ukazuje čas do ďalšej kontroly. Náhodný posun do 10 % rozloží návštevníkov v čase a karty na pozadí počkajú, kým sa na ne niekto pozrie. `0` alebo `false` obnovovanie vypne.
+- 🧱 **Funguje aj bez JavaScriptu** - PHP verzia vykreslí značku, stav, nadpis, podnadpis, fotku, správu aj pätu na serveri a pridá `<meta refresh>`.
+- ♿ **Prístupnosť** - `role="progressbar"`, stav vždy aj textom, čitateľný kontrast v oboch režimoch a žiadne animácie okrem plnenia pruhu, ktoré sa pri `prefers-reduced-motion` vypne.
+- 🛡️ **Bezpečný výstup** - PHP escapuje všetky texty a JSON vkladá s `JSON_HEX_TAG`. `app.js` vkladá obsah len cez `textContent` a odkazy povolí len so schémou `http`, `https`, `mailto` a `tel`.
 
 ---
 
 ## 🚀 Rýchly štart
 
-Projekt nemá package manager, závislosti ani build krok. Stačí PHP interpreter (bez databázy, bez rozšírení nad rámec jadra).
+Projekt nemá závislosti ani build krok.
 
 ### Lokálny náhľad
 
+Statická verzia, tak ako beží na GitHub Pages:
+
 ```bash
-cd files
+python -m http.server 8000
+```
+
+PHP verzia so skutočným kódom 503 (vstavaný server pri `/` uprednostní `index.php`):
+
+```bash
 php -S 127.0.0.1:8000
 ```
 
-Otvorte `http://127.0.0.1:8000/`.
-
-Overenie hlavičiek:
+Otvorte `http://127.0.0.1:8000/`. Overenie hlavičiek:
 
 ```bash
 curl -i http://127.0.0.1:8000/
 ```
 
 > [!NOTE]
-> Vstavaný PHP server vráti `HTTP/1.1 503 Service Unavailable` - to je zámer, nie chyba. Prehliadač telo stránky napriek tomu vykreslí normálne.
+> Prehliadač stránku vykreslí normálne aj pri kóde `503`. To je zámer, nie chyba.
 
-### Nasadenie na server
+> [!TIP]
+> Adresa s `?demo` (napr. `http://127.0.0.1:8000/?demo`) zapne ukážkový režim: začiatok, predpokladaný koniec aj čas aktualizácie sa posúvajú s aktuálnym časom, takže ukážka nikdy nevyzerá zastaralo. Na ostrej stránke sa `?demo` nepoužíva.
 
-1. Skopírujte `index.php`, `services.json` a `styles.css` do document rootu, ktorý vie spúšťať PHP (Apache + PHP-FPM, nginx + PHP-FPM, LiteSpeed, bežný shared hosting).
-2. Pridajte vlastné rewrite / redirect pravidlo, ktoré počas odstávky nasmeruje všetku prevádzku na tento `index.php`.
-3. Upravte `services.json` a načítajte stránku znova - reštart ani mazanie cache nie je potrebné.
+### Nasadenie na PHP hosting
+
+1. Nahrajte `index.php`, `index.html`, `app.js`, `styles.css`, `favicon.svg` a `services.json` do priečinka, napríklad `/maintenance/`.
+2. Počas odstávky presmerujte všetky požiadavky na `/maintenance/index.php`. Príklad `.htaccess` v koreni webu pre Apache:
+
+   ```apache
+   RewriteEngine On
+   # Vaša IP adresa ďalej vidí ostrý web (voliteľné)
+   RewriteCond %{REMOTE_ADDR} !=203.0.113.10
+   RewriteCond %{REQUEST_URI} !^/maintenance/index\.php$
+   RewriteRule ^ /maintenance/index.php [L]
+   ```
+
+3. Upravte `services.json`. Zmena sa prejaví pri ďalšom načítaní, bez reštartu a mazania cache.
 
 > [!IMPORTANT]
-> Repozitár neobsahuje `.htaccess`, nginx snippet ani deploy skript. Samotné nakopírovanie súborov web do maintenance režimu neprepne - presmerovanie prevádzky si musíte napísať sami.
+> Odpovedať musí `index.php`, nie `index.html`, inak návštevník dostane kód 200 bez `Retry-After`. Ak server priečinok servíruje cez `DirectoryIndex`, dajte `index.php` na prvé miesto.
+
+> [!TIP]
+> PHP verzia vkladá štýly, skript, ikonu aj konfiguráciu priamo do stránky. Funguje preto na akejkoľvek adrese, kam ju presmerovanie pošle (`/eshop/kosik`, `/blog/clanok`), a preťažený server pri nej nedostane ďalšie požiadavky. Výnimkou je fotka - dajte ju na CDN alebo použite celú adresu `https://`.
+
+### Statický hosting
+
+Nahrajte tie isté súbory (`index.php` sa ignoruje). Na GitHub Pages stačí zapnúť Pages nad koreňom repozitára, tak beží aj [demo](https://apoliak7777.github.io/maintenance-website/?demo).
 
 ---
 
@@ -99,130 +138,159 @@ curl -i http://127.0.0.1:8000/
 
 ```text
 maintenance-website/
-├── index.php               # PHP verzia (274 riadkov): defaulty, načítanie JSON,
-│                           # esc()/badgeModifier(), 503 hlavičky, HTML šablóna, inline JS
-├── index.html              # statická verzia: rovnaká stránka, JSON sa načíta v prehliadači
-├── services.json           # jediný konfiguračný súbor, číta ho PHP aj statická verzia
-├── styles.css              # 720 riadkov témy: tokeny, pozadie, karty, badge, 6x @keyframes
-├── LICENSE                 # plný text GNU GPL-3.0
-├── README.md               # tento súbor
-└── README.en.md            # anglická verzia
+├── index.html      # celá stránka: šablóna s predvolenými textami
+├── styles.css      # vzhľad: farby, svetlý a tmavý režim, rozloženie
+├── app.js          # vykreslenie z konfigurácie, fakty a odpočet, obnovovanie, texty SK/EN
+├── index.php       # PHP vstup: hlavičky 503, vloženie konfigurácie a súborov, texty na serveri
+├── services.json   # jediná konfigurácia, číta ju PHP aj statická verzia
+├── favicon.svg     # ikona
+├── docs/           # snímky obrazovky do README
+├── LICENSE         # GNU GPL-3.0
+├── README.md       # tento súbor
+└── README.en.md    # anglická verzia
 ```
-
-> [!TIP]
-> Sú tu **dva vstupné body, ktoré vykresľujú tú istú stránku**. `index.php` renderuje na
-> serveri a posiela hlavičky `503` + `Retry-After` - to je verzia pre skutočnú odstávku.
-> `index.html` je statická verzia: `services.json` si načíta v prehliadači cez `fetch`,
-> takže funguje aj na hostingu bez PHP (GitHub Pages). Statická verzia **nevie** poslať
-> stavový kód `503`. `styles.css` je linkovaný relatívne, takže musí zostať vedľa nich.
 
 ---
 
 ## ⚙️ Konfigurácia
 
-Všetko sa nastavuje v `services.json`.
+Všetko sa nastavuje v `services.json`. Každý kľúč je voliteľný a staré konfigurácie fungujú ďalej.
 
-| Kľúč                   | Typ    | Efekt                                                                                                          |
-| ---------------------- | ------ | -------------------------------------------------------------------------------------------------------------- |
-| `headline`             | string | Text `<h1>`, `<title>` aj `og:title`                                                                            |
-| `tagline`              | string | Podnadpis, meta description a `og:description`                                                                  |
-| `status_label`         | string | Text v pulzujúcom červenom pill-e                                                                               |
-| `countdown_target`     | string | Dátum parsovateľný cez JS `new Date()` (napr. `2026-07-20T18:00:00Z`); prázdna hodnota odpočet skryje            |
-| `progress_percent`     | int    | Pretypuje sa na int a oreže do 0-100; `0` skryje progress bar                                                    |
-| `auto_refresh_seconds` | int    | Interval automatického reloadu, serverovo minimálne 60                                                          |
-| `contact_email`        | string | Vykreslí sa ako `mailto:` odkaz                                                                                 |
-| `contact_url`          | string | Odkaz „Status Page" s `target="_blank" rel="noopener"`                                                          |
-| `services[]`           | array  | Objekty `{name, description, status}`                                                                           |
-| `next_steps[]`         | array  | Objekty `{action, eta}`                                                                                         |
+| Kľúč                   | Typ                               | Predvolené                          | Čo robí                                                                                                 |
+| ---------------------- | --------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `lang`                 | `"en"` \| `"sk"`                  | `"en"`                              | Jazyk popiskov a formát dátumov                                                                         |
+| `theme`                | `"light"` \| `"dark"` \| `"auto"` | `"light"`                           | Svetlý, tmavý alebo podľa nastavenia systému návštevníka                                                |
+| `brand_name`           | string                            | doména stránky                      | Názov v hlavičke, v päte a v titulku stránky                                                            |
+| `logo_url`             | URL                               | -                                   | Logo v hlavičke namiesto názvu (`https://…` alebo cesta vedľa stránky)                                  |
+| `accent_color`         | `#rgb` \| `#rrggbb`               | `#1d5bd6`                           | Farba stavového pásu, tlačidiel, pruhu hotovej práce, odkazov a stavu „Údržba“                          |
+| `image_url`            | URL                               | -                                   | Fotka vedľa nadpisu (`https://…` alebo cesta vedľa stránky); bez nej je úvod na celú šírku              |
+| `image_alt`            | string                            | -                                   | Popis fotky pre čítačky obrazovky                                                                       |
+| `headline`             | string                            | „We'll be back shortly“             | `<h1>`, `<title>` a `og:title`                                                                          |
+| `tagline`              | string                            | text podľa jazyka                   | Podnadpis, `meta description` a `og:description`                                                        |
+| `status_label`         | string                            | „Scheduled maintenance in progress“ | Text v stavovom páse                                                                                    |
+| `message`              | string                            | ospravedlnenie                      | Text v časti „Posledná správa“                                                                          |
+| `started_at`           | dátum ISO 8601                    | -                                   | Začiatok údržby v páse s faktami                                                                        |
+| `countdown_target`     | dátum ISO 8601                    | -                                   | Predpokladaný koniec, napr. `2026-11-20T18:00:00+01:00`; v páse s faktami aj s tým, koľko zostáva      |
+| `progress_percent`     | číslo 0-100                       | `0`                                 | Percento hotovej práce s pruhom; `0` ho skryje                                                          |
+| `auto_refresh_seconds` | číslo                             | `300`                               | Interval obnovenia, minimálne 60; `0` alebo `false` ho vypne                                            |
+| `timezone`             | pásmo IANA                        | pásmo návštevníka                   | Pásmo pre všetky časy, napr. `Europe/Bratislava`                                                        |
+| `contact_phone`        | string                            | -                                   | Telefón v hlavičke a veľký v časti „Potrebujete pomoc?“ (`tel:`)                                        |
+| `contact_email`        | string                            | -                                   | E-mail v hlavičke, tlačidlo „Napísať podpore“ a odkaz v kontakte                                        |
+| `contact_url`          | URL                               | -                                   | Tlačidlo a odkaz „Stavová stránka“; povolené sú len `http` a `https`                                    |
+| `footer_text`          | string                            | -                                   | Riadok v päte pod názvom firmy, napr. obchodné meno, adresa, IČO                                        |
+| `updated_at`           | dátum ISO 8601                    | čas zmeny súboru                    | Čas poslednej aktualizácie. Bez neho PHP použije `filemtime`, statický hosting hlavičku `Last-Modified` |
+| `services[]`           | pole                              | -                                   | Objekty `{ name, description, status }`                                                                 |
+| `next_steps[]`         | pole                              | -                                   | Objekty `{ action, eta, state }`                                                                        |
+
+Pri `tagline` a `message` prázdny reťazec `""` daný prvok skryje, chýbajúci kľúč použije predvolený text vo zvolenom jazyku. Prázdny `status_label` necháva v páse predvolený text. Časti bez údajov (pás s faktami, služby, postup, kontakt) sa nezobrazia vôbec.
 
 ### Stavy služieb
 
-Text badge-u je vždy hodnota `status` prevedená na veľké písmená - PHP ju posiela cez `strtoupper()` a CSS na `.service-badge` navyše aplikuje `text-transform: uppercase`. Farbu určuje funkcia `badgeModifier()`, ktorá porovnáva `strtolower($status)`.
+| `status`      | Text (EN / SK)                              | Farba         | Ikona  |
+| ------------- | ------------------------------------------- | ------------- | ------ |
+| `outage`      | Outage / Výpadok                            | červená       | ✕      |
+| `degraded`    | Degraded performance / Obmedzená prevádzka  | jantárová     | !      |
+| `maintenance` | Under maintenance / Údržba                  | farba značky  | hodiny |
+| `operational` | Operational / V prevádzke                   | zelená        | ✓      |
+| čokoľvek iné  | pôvodný text (`planned` → Planned)          | sivá          | ?      |
 
-| Hodnota `status` | Badge                                                | Farba                        |
-| ---------------- | ---------------------------------------------------- | ---------------------------- |
-| `outage`         | OUTAGE                                               | červená                      |
-| `degraded`       | DEGRADED                                             | jantárová                    |
-| `operational`    | OPERATIONAL                                          | zelená                       |
-| čokoľvek iné     | hodnota prevedená na veľké písmená (`planned` → PLANNED) | šedá (fallback `unknown`) |
+Na veľkosti písmen nezáleží. Chýbajúci `name` sa zobrazí ako „Unnamed service“ / „Služba bez názvu“, chýbajúci `description` sa vynechá.
 
-Chýbajúce hodnoty majú fallbacky: `name` → `Unnamed Service`, `description` → `No description provided.`, `status` → `UNKNOWN`, `action` → `Pending`, `eta` → `TBD`.
+### Kroky
+
+| `state`   | Zobrazenie                                      |
+| --------- | ----------------------------------------------- |
+| `done`    | zelená fajka, text kroku sivou, „Hotovo“        |
+| `active`  | plný krúžok vo farbe značky, „Prebieha“         |
+| `pending` | prázdny krúžok, „Na rade“                       |
+
+Ak žiadny krok `state` nemá, prvý je `active` a ostatné `pending`, takže staré konfigurácie fungujú bez zmeny. `eta` sa pripíše za stav („Prebieha · ~40 min“); keď chýba, zobrazí sa len stav.
 
 ### Ukážkový `services.json`
 
 ```json
 {
-  "headline": "We'll Be Back Shortly",
-  "tagline": "Our platform is currently undergoing essential maintenance.",
-  "status_label": "SERVICE UNAVAILABLE",
-  "countdown_target": "",
+  "lang": "sk",
+  "brand_name": "Moja firma",
+  "image_url": "foto-serverovna.jpg",
+  "headline": "Čoskoro sme späť",
+  "status_label": "Prebieha plánovaná údržba",
+  "started_at": "2026-11-20T16:00:00+01:00",
+  "countdown_target": "2026-11-20T18:00:00+01:00",
   "progress_percent": 45,
-  "auto_refresh_seconds": 300,
-  "contact_email": "",
-  "contact_url": "",
+  "contact_phone": "+421 900 000 000",
+  "contact_email": "podpora@example.com",
+  "footer_text": "Moja firma s.r.o. · Hlavná 1, Bratislava",
   "services": [
-    { "name": "API", "description": "Some API endpoints are returning errors.", "status": "outage" },
-    { "name": "CDN", "description": "Static assets are operational.", "status": "operational" }
+    { "name": "E-shop", "description": "Objednávky čakajú vo fronte.", "status": "outage" },
+    { "name": "Databáza", "description": "Presúvame dáta na nový server.", "status": "maintenance" }
   ],
   "next_steps": [
-    { "action": "Investigating root cause with priority.", "eta": "1-2 hours" }
+    { "action": "Záloha databázy.", "state": "done" },
+    { "action": "Migrácia dát.", "eta": "~30 min", "state": "active" },
+    { "action": "Kontrola a spustenie.", "eta": "~15 min" }
   ]
 }
 ```
 
+Príklad so všetkými kľúčmi je priamo v [`services.json`](services.json).
+
 ### Čo sa cez JSON nastaviť nedá
 
-| Vec                                      | Kde sa mení                                        |
-| ---------------------------------------- | -------------------------------------------------- |
-| Časové pásmo (natvrdo UTC)               | `date_default_timezone_set('UTC')` v `index.php`   |
-| Hodnota `Retry-After: 3600`              | `header(...)` v `index.php`                        |
-| Ospravedlňujúci odstavec a text pätičky  | literály v HTML šablóne `index.php`                |
-| Farebná schéma a celý vzhľad             | CSS custom properties v `styles.css`               |
+| Vec                                       | Kde sa mení                                  |
+| ----------------------------------------- | -------------------------------------------- |
+| `Retry-After` bez predpokladaného konca (3600 s) | `$retryAfter` v `index.php`           |
+| Popisky rozhrania a ďalšie jazyky         | objekt `STRINGS` v `app.js`                  |
+| Písmo, farby okrem značky, rozloženie     | `styles.css` (farby na začiatku súboru)      |
 
 ---
 
 ## 🌐 HTTP hlavičky
 
-| Hlavička         | Hodnota                                | Prečo                                                                       |
-| ---------------- | -------------------------------------- | --------------------------------------------------------------------------- |
-| Status           | `503 Service Unavailable`              | Crawler ani monitoring stránku nevyhodnotí ako platný obsah                 |
-| `Retry-After`    | `3600`                                 | Odporúčaný interval ďalšieho pokusu v sekundách                             |
-| `Cache-Control`  | `no-cache, no-store, must-revalidate`   | Zabráni tomu, aby maintenance stránka zostala v cache po obnove služby      |
-| `<meta robots>`  | `noindex, nofollow`                    | Poistka proti indexácii                                                     |
+| Hlavička        | Hodnota                                               | Prečo                                                               |
+| --------------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| Status          | `503 Service Unavailable`                             | Vyhľadávače ani monitoring stránku nepovažujú za platný obsah       |
+| `Retry-After`   | sekundy do `countdown_target` (min. 60), inak `3600`  | Kedy to má klient skúsiť znova                                      |
+| `Cache-Control` | `no-cache, no-store, must-revalidate`                 | Maintenance stránka nezostane v cache po obnove služby              |
+| `X-Robots-Tag`  | `noindex, nofollow`                                   | Poistka proti indexácii aj pre crawlery, ktoré HTML nečítajú        |
+| `<meta robots>` | `noindex, nofollow`                                   | To isté priamo v HTML, platí aj pre statickú verziu                 |
 
 ---
 
 ## 🎨 Dizajn a technológie
 
-| Vrstva     | Riešenie                                                                              |
-| ---------- | -------------------------------------------------------------------------------------- |
-| Backend    | PHP bez frameworku; nepoužíva žiadnu syntax novšiu ako PHP 7.0 (kvôli operátoru `??`)  |
-| Šablóna    | Server-rendered HTML5 priamo v `index.php`                                             |
-| Štýly      | Vanilla CSS, 720 riadkov, 6 `@keyframes`, 2 media queries, žiadny preprocesor           |
-| Skripty    | Inline vanilla JS v IIFE, žiadne knižnice                                              |
-| Dáta       | JSON súbor, žiadna databáza                                                            |
-| Typografia | Inter z Google Fonts, fallback `system-ui` / Segoe UI / Roboto                          |
-| Ikony      | Inline Heroicons SVG cesty                                                             |
-
-Žiadny `composer.json`, `package.json`, lockfile ani `vendor/` adresár - jediná externá sieťová závislosť je stylesheet Google Fonts. Bez internetu stránka funguje ďalej so systémovým fontom.
+| Vrstva  | Riešenie                                                                                                                      |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Vzhľad  | firemná stránka: stavový pás, hlavička s kontaktmi, fotka vedľa nadpisu, pás s faktami, obsah oddelený čiarami, tmavá päta; jedna farba značky, hranaté tlačidlá, bez kariet a efektov |
+| Písmo   | IBM Plex Sans z Google Fonts; bez internetu systémové písmo                                                                    |
+| Štýly   | čisté CSS: custom properties, `color-mix()`, CSS Grid, svetlý a tmavý režim                                                   |
+| Skript  | `app.js`, čistý JavaScript bez knižníc a bez build kroku                                                                      |
+| Backend | `index.php`, PHP 7.2+ bez frameworku a bez rozšírení                                                                          |
+| Ikony   | vlastné inline SVG                                                                                                            |
+| Dáta    | `services.json`, žiadna databáza                                                                                              |
+| Fotka v ukážke | Valentin Lacoste, [Unsplash](https://unsplash.com/photos/technician-inspecting-server-racks-with-a-handheld-diagnostic-tool-A-b2nPSSK6E) (licencia Unsplash) |
 
 ---
 
 ## ⚠️ Známe obmedzenia
 
 > [!WARNING]
-> **`services.json` je verejne čitateľný.** Leží vedľa `index.php` v document roote a webserver ho servíruje ako statický súbor na `/services.json` (HTTP 200). Nedávajte doň interné názvy systémov, detaily incidentu ani firemné e-maily, alebo cestu zablokujte na úrovni webservera.
+> **`services.json` je verejne čitateľný.** Statická verzia ho musí stiahnuť do prehliadača, takže doň nedávajte nič, čo nemá vidieť každý. PHP verzia ho vkladá do stránky sama, takže priamy prístup k nemu môžete na serveri zakázať, napríklad v Apache:
+>
+> ```apache
+> <Files "services.json">
+>     Require all denied
+> </Files>
+> ```
 
-> [!CAUTION]
-> **Reload loop pri prešlom odpočte.** `updateCountdown()` sa spúšťa hneď po načítaní a pri `diff <= 0` volá `location.reload()`. Ak `countdown_target` ukazuje do minulosti a zostane vyplnený, každé načítanie okamžite vyvolá ďalšie - nekonečné obnovovanie pre všetkých návštevníkov, kým hodnotu nezmeníte alebo nevymažete.
-
-- 🔀 **Bez routovacieho pravidla to nefunguje** - repozitár neobsahuje `.htaccess`, nginx konfiguráciu ani deploy skript.
-- 🔗 **`contact_url` sa nevaliduje na schému** - je HTML-escapované, ale hodnota `javascript:` alebo `data:` sa stane klikateľným odkazom. `services.json` preto považujte za dôveryhodný vstup a nikdy ho nenechajte editovať cez upload formulár.
-- 🕐 **Timestamp sa viaže na mtime súboru** - deploy metóda, ktorá súbor prepíše (git checkout, rsync, rebuild kontajnera), posunie „Last updated" aj keď sa na incidente nič nezmenilo. Časy sú vždy v UTC.
-- 📈 **Auto-refresh generuje vlastnú záťaž** - `auto_refresh_seconds` má dolnú hranicu 60, ale žiadny strop. Počas reálneho výpadku každý otvorený prehliadač v tomto intervale búši na už tak preťažený origin.
-- 🎨 **Iba prvé tri body timeline majú vlastnú farbu** - CSS pravidlá sú `nth-child(2)` a `nth-child(3)`; štvrtý a ďalší krok dostane predvolený fialový bod.
-- 🧊 **Dizajn stojí na `backdrop-filter` a `mask-composite`** - v prehliadačoch bez ich podpory sa sklenené karty vykreslia ako ploché priesvitné panely a prstenec okolo ikony ako plný disk. Obsah zostáva čitateľný.
-- 🧪 **Žiadne testy, linting, CI ani logovanie** - chyby čítania JSON sú potlačené cez `@` a tichý fallback na defaulty, takže poškodený `services.json` sa prejaví len generickou stránkou bez akéhokoľvek upozornenia.
+- 🔀 **Presmerovanie je na vás** - repozitár obsahuje len príklad pravidla pre Apache vyššie. Nginx, Caddy alebo load balancer treba nastaviť podľa vlastného servera.
+- 📄 **Statická verzia nevie poslať 503** - na GitHub Pages a podobných hostingoch odpovedá kódom 200.
+- 🖼️ **Fotka sa do stránky nevkladá** - prehliadač ju sťahuje zvlášť. Fotka v ukážke ide z Unsplash; na ostrú stránku dajte vlastnú.
+- 🕐 **Čas aktualizácie** sa bez `updated_at` berie z času zmeny súboru, takže ho posunie aj nasadenie, ktoré súbor len prepíše.
+- 📈 **Obnovovanie stále zaťažuje server** - minimum je 60 sekúnd. Náhodný posun a čakanie kariet na pozadí záťaž rozložia, ale neodstránia.
+- 🔤 **Písmo ide z Google Fonts** - IP adresa návštevníka sa pri tom dostane ku Google. Ak to kvôli GDPR nechcete, stiahnite písmo k sebe a upravte `<link>` v `index.html`.
+- 🌐 **Moderné prehliadače** - `color-mix()` podporujú prehliadače od roku 2023. V starších niektoré farby textu vypadnú, obsah zostane čitateľný.
+- 🧪 **Bez automatických testov a CI.**
 
 ---
 
@@ -230,12 +298,12 @@ Chýbajúce hodnoty majú fallbacky: `name` → `Unnamed Service`, `description`
 
 Projekt obsahuje súbor `LICENSE` s úplným textom **GNU General Public License v3 (29. jún 2007)**.
 
-GPL-3.0 je copyleft licencia - ak distribuujete upravenú verziu, musíte ju uvoľniť opäť pod GPL-3.0. Text licencie je nezmenená FSF šablóna a nemá vyplneného držiteľa autorských práv ani rok; žiadny zdrojový súbor nenesie GPL hlavičku.
+GPL-3.0 je copyleft licencia - ak distribuujete upravenú verziu, musíte ju uvoľniť opäť pod GPL-3.0. Text licencie je nezmenená FSF šablóna a nemá vyplneného držiteľa autorských práv ani rok; žiadny zdrojový súbor nenesie GPL hlavičku. Fotka v ukážke nie je súčasťou repozitára a platí pre ňu licencia Unsplash.
 
 ---
 
 <div align="center">
 
-Vytvoril **Alex Poliak** - [GitHub](https://github.com/Apoliak7777) - [alexpoliak21@gmail.com](mailto:alexpoliak21@gmail.com)
+Vytvoril **Apoliak** - [GitHub](https://github.com/Apoliak7777)
 
 </div>

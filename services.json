@@ -1,37 +1,55 @@
 {
-  "headline": "We'll Be Back Shortly",
-  "tagline": "Our platform is currently undergoing essential maintenance to enhance your experience.",
-  "status_label": "SERVICE UNAVAILABLE",
+  "lang": "en",
+  "theme": "light",
+  "brand_name": "Acme Cloud",
+  "logo_url": "",
+  "accent_color": "#1d5bd6",
+  "image_url": "https://images.unsplash.com/photo-1785682117394-4c8d27afc12a?auto=format&fit=crop&w=1600&q=80",
+  "image_alt": "Technician checking the server racks",
+  "headline": "We'll be back shortly",
+  "tagline": "We're upgrading our core infrastructure to make the platform faster and more reliable. Thanks for bearing with us.",
+  "status_label": "Scheduled maintenance in progress",
+  "message": "The database migration is running. The web panel is read-only and write requests to the API are paused until it finishes. No data is lost: queued requests will be processed as soon as we're back.",
+  "started_at": "",
   "countdown_target": "",
-  "progress_percent": 45,
+  "progress_percent": 64,
   "auto_refresh_seconds": 300,
-  "contact_email": "",
-  "contact_url": "",
+  "timezone": "",
+  "contact_phone": "+44 20 7946 0123",
+  "contact_email": "support@example.com",
+  "contact_url": "https://status.example.com",
+  "footer_text": "Acme Cloud Ltd. · Example Street 1, London",
   "services": [
     {
-      "name": "Web Panel",
-      "description": "The web control panel is in read-only mode.",
+      "name": "Web panel",
+      "description": "Read-only while the database migration runs.",
       "status": "outage"
     },
     {
-      "name": "API",
-      "description": "Some API endpoints are returning errors.",
-      "status": "outage"
-    },
-    {
-      "name": "Authentication",
-      "description": "Login delays and token refreshes are degraded.",
+      "name": "Public API",
+      "description": "Write endpoints return 503, reads are served from cache.",
       "status": "degraded"
     },
     {
-      "name": "CDN",
-      "description": "Static assets are operational.",
+      "name": "Database cluster",
+      "description": "Moving to the new storage engine.",
+      "status": "maintenance"
+    },
+    {
+      "name": "Authentication",
+      "description": "Sign-in works, token refresh is slower than usual.",
+      "status": "degraded"
+    },
+    {
+      "name": "CDN & static assets",
+      "description": "Serving normally from all regions.",
       "status": "operational"
     }
   ],
   "next_steps": [
-    {"action": "Investigating root cause with priority.", "eta": "1-2 hours"},
-    {"action": "Apply fix and validate across regions.", "eta": "TBD"},
-    {"action": "Monitor for recurrence and update status.", "eta": "TBD"}
+    { "action": "Snapshot every production database.", "state": "done" },
+    { "action": "Migrate the data to the new storage engine.", "eta": "~40 min", "state": "active" },
+    { "action": "Run integrity checks and warm up the caches.", "eta": "~20 min", "state": "pending" },
+    { "action": "Re-enable writes and watch the metrics closely.", "state": "pending" }
   ]
 }

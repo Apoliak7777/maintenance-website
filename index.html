@@ -1,356 +1,125 @@
 <!doctype html>
 <!--
-    Maintenance Page - static build.
+  Maintenance Website · https://github.com/Apoliak7777/maintenance-website
 
-    Same page as index.php, but rendered in the browser instead of on the server,
-    so it can be hosted on static-only hosting such as GitHub Pages.
-    Both entry points read the same services.json.
-
-    Note: a static host cannot send HTTP 503 or Retry-After. If those matter,
-    deploy index.php on PHP hosting instead.
+  This file is the whole page. On a static host (GitHub Pages, S3, Netlify)
+  app.js reads services.json in the browser. On PHP hosting, index.php serves
+  this same file with a real 503 status and the configuration already inlined.
 -->
 <html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="robots" content="noindex, nofollow" />
-    <meta name="description" content="Our platform is currently undergoing essential maintenance to enhance your experience." />
-    <meta property="og:title" content="We'll Be Back Shortly — Maintenance" />
-    <meta property="og:description" content="Our platform is currently undergoing essential maintenance to enhance your experience." />
-    <title>We'll Be Back Shortly — Maintenance</title>
-
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-
-    <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>We'll be back shortly — Maintenance</title>
+  <meta name="description" content="We are carrying out scheduled maintenance to make the site faster and more reliable.">
+  <meta property="og:title" content="We'll be back shortly — Maintenance">
+  <meta property="og:description" content="We are carrying out scheduled maintenance to make the site faster and more reliable.">
+  <meta name="theme-color" content="#1d5bd6">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <!-- maintenance:config -->
+  <script>
+    /* Colour theme from the config before the first paint: light (default), dark or auto. */
+    (function () {
+      var theme = 'light';
+      try { theme = JSON.parse(document.getElementById('maintenance-config').textContent).theme || 'light'; } catch (e) {}
+      if (theme === 'auto') {
+        theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+    })();
+  </script>
+  <noscript><meta http-equiv="refresh" content="300"></noscript>
 </head>
 <body>
-
-    <!-- Animated background -->
-    <div class="bg-layer" aria-hidden="true">
-        <div class="bg-orb bg-orb--1"></div>
-        <div class="bg-orb bg-orb--2"></div>
-        <div class="bg-orb bg-orb--3"></div>
+  <div class="alert" role="status">
+    <div class="wrap alert__inner">
+      <p class="alert__status">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M14.81 4.56A4 4 0 1 0 19.44 9.19" stroke-width="2.4"/>
+          <path d="M12.67 11.33L5.5 18.5" stroke-width="3"/>
+        </svg>
+        <span data-slot="status_label">Scheduled maintenance in progress</span>
+      </p>
+      <p class="alert__updated" id="updated-ago" hidden></p>
     </div>
-    <div class="bg-grid" aria-hidden="true"></div>
+  </div>
 
-    <main class="page-wrap">
+  <header class="site-header">
+    <div class="wrap site-header__inner">
+      <div class="brand" id="brand" data-slot="brand_name" hidden></div>
+      <p class="header-contact" id="header-contact" hidden></p>
+    </div>
+  </header>
 
-        <!-- ===== Hero ===== -->
-        <header class="hero">
-            <div class="hero__icon" aria-hidden="true">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.049.58.025 1.193-.14 1.743" />
-                </svg>
-            </div>
+  <main>
+    <section class="hero" id="hero" aria-labelledby="headline">
+      <div class="hero__text">
+        <h1 id="headline" data-slot="headline">We'll be back shortly</h1>
+        <p class="tagline" data-slot="tagline">We are carrying out scheduled maintenance to make the site faster and more reliable.</p>
+        <div class="actions" id="actions" hidden></div>
+      </div>
+      <div class="hero__media" id="hero-media" hidden></div>
+    </section>
 
-            <div class="hero__pill">
-                <span class="hero__pill-dot"></span>
-                <span id="status-label">SERVICE UNAVAILABLE</span>
-            </div>
+    <section class="facts" id="facts" hidden>
+      <dl class="wrap facts__list" id="facts-list"></dl>
+    </section>
 
-            <h1 class="hero__headline" id="headline">We'll Be Back Shortly</h1>
-            <p class="hero__tagline" id="tagline">Our platform is currently undergoing essential maintenance to enhance your experience.</p>
-
-            <!-- Countdown Timer (shown only when countdown_target is set) -->
-            <div class="countdown" id="countdown" data-target="" hidden>
-                <div class="countdown__block">
-                    <span class="countdown__number" id="cd-hours">--</span>
-                    <span class="countdown__label">Hours</span>
-                </div>
-                <div class="countdown__block">
-                    <span class="countdown__number" id="cd-minutes">--</span>
-                    <span class="countdown__label">Minutes</span>
-                </div>
-                <div class="countdown__block">
-                    <span class="countdown__number" id="cd-seconds">--</span>
-                    <span class="countdown__label">Seconds</span>
-                </div>
-            </div>
-        </header>
-
-        <!-- ===== Progress ===== -->
-        <section class="progress-section">
-            <div class="glass-card">
-                <div class="section-header">
-                    <span class="section-label">Current Status</span>
-                    <span class="section-label" id="progress-label" hidden></span>
-                </div>
-                <p class="progress-message">
-                    We sincerely apologize for any inconvenience. Our engineering team is working diligently to restore full service.
-                </p>
-                <div class="progress-bar-wrap" id="progress-bar-wrap" hidden>
-                    <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%"></div>
-                </div>
-                <div class="progress-meta">
-                    <span class="progress-percent">Maintenance in progress</span>
-                    <span class="progress-updated" id="progress-updated"></span>
-                </div>
-            </div>
+    <div class="wrap content">
+      <div class="content__main">
+        <section class="section is-first" id="update" aria-labelledby="update-title">
+          <div class="section__head">
+            <h2 class="section__title" id="update-title" data-i18n="latest_update">Latest update</h2>
+            <time class="section__meta" id="updated-at" hidden></time>
+          </div>
+          <p class="update__text" data-slot="message">We apologise for the inconvenience. We are working to have everything running again as soon as possible.</p>
         </section>
 
-        <!-- ===== Affected Services ===== -->
-        <section class="services-section" id="services-section" hidden>
-            <div class="glass-card">
-                <h2 class="section-title">Affected Services</h2>
-                <div class="services-grid" id="services-grid"></div>
-            </div>
+        <section class="section" id="services" aria-labelledby="services-title" hidden>
+          <div class="section__head">
+            <h2 class="section__title" id="services-title" data-i18n="services">Service status</h2>
+            <p class="section__meta" id="services-count"></p>
+          </div>
+          <ul class="rows" id="service-list"></ul>
+        </section>
+      </div>
+
+      <div class="content__side">
+        <section class="section" id="steps" aria-labelledby="steps-title" hidden>
+          <div class="section__head">
+            <h2 class="section__title" id="steps-title" data-i18n="next_steps">Maintenance plan</h2>
+          </div>
+          <ol class="rows" id="step-list"></ol>
         </section>
 
-        <!-- ===== Timeline — What Happens Next ===== -->
-        <section class="timeline-section" id="timeline-section" hidden>
-            <div class="glass-card">
-                <h2 class="section-title">What Happens Next</h2>
-                <div class="timeline" id="timeline"></div>
-            </div>
+        <section class="section" id="help" aria-labelledby="help-title" hidden>
+          <h2 class="section__title" id="help-title" data-i18n="help_title">Need help?</h2>
+          <p class="help__text" data-i18n="help_text">Our support team is available during the maintenance.</p>
+          <p class="help__phone" id="help-phone" hidden></p>
+          <p class="help__links" id="help-links" hidden></p>
         </section>
+      </div>
+    </div>
+  </main>
 
-        <!-- ===== Footer ===== -->
-        <footer class="page-footer">
-            <hr class="footer-divider" />
-            <p class="footer-thanks">Thank you for your patience. We'll be back as soon as possible.</p>
+  <footer class="site-footer">
+    <div class="wrap site-footer__inner">
+      <div>
+        <p class="site-footer__brand" data-slot="footer_brand"></p>
+        <p class="site-footer__text" data-slot="footer_text" hidden></p>
+      </div>
+      <div class="site-footer__side">
+        <p data-i18n="thanks">Thank you for your patience.</p>
+        <p class="refresh" id="refresh" hidden><span data-i18n="next_check">This page refreshes automatically in</span> <span id="refresh-left"></span></p>
+      </div>
+    </div>
+  </footer>
 
-            <div class="footer-contact" id="footer-contact" hidden></div>
-
-            <div class="footer-meta">
-                <span id="footer-updated"></span>
-                <span class="footer-meta__dot"></span>
-                <span class="auto-refresh-badge">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182M20.984 4.356v4.993" />
-                    </svg>
-                    Auto-refresh in <span id="refresh-timer">300</span>s
-                </span>
-            </div>
-        </footer>
-
-    </main>
-
-    <script>
-    (function () {
-        'use strict';
-
-        var DEFAULTS = {
-            headline: "We'll Be Back Shortly",
-            tagline: 'Our platform is currently undergoing essential maintenance to enhance your experience.',
-            status_label: 'SERVICE UNAVAILABLE',
-            services: [],
-            next_steps: [],
-            countdown_target: '',
-            progress_percent: 0,
-            auto_refresh_seconds: 300,
-            contact_email: '',
-            contact_url: ''
-        };
-
-        var MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                            'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        var MONTHS_LONG = ['January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-
-        function el(id) { return document.getElementById(id); }
-
-        // Mirrors PHP date('M j, g:i A T') and date('F j, Y — g:i A T') in UTC.
-        function formatTime(d) {
-            var h = d.getUTCHours();
-            var ampm = h >= 12 ? 'PM' : 'AM';
-            var h12 = h % 12 === 0 ? 12 : h % 12;
-            var mins = String(d.getUTCMinutes()).padStart(2, '0');
-            return h12 + ':' + mins + ' ' + ampm + ' UTC';
-        }
-        function formatShort(d) {
-            return MONTHS_SHORT[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + formatTime(d);
-        }
-        function formatLong(d) {
-            return MONTHS_LONG[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' +
-                   d.getUTCFullYear() + ' — ' + formatTime(d);
-        }
-
-        function badgeModifier(status) {
-            switch (String(status || '').toLowerCase()) {
-                case 'outage':      return 'outage';
-                case 'degraded':    return 'degraded';
-                case 'operational': return 'operational';
-                default:            return 'unknown';
-            }
-        }
-
-        // Only allow link schemes that cannot execute script.
-        function safeUrl(url) {
-            try {
-                var u = new URL(url, location.href);
-                return /^(https?|mailto):$/.test(u.protocol) ? u.href : '';
-            } catch (e) {
-                return '';
-            }
-        }
-
-        function render(data, lastUpdated) {
-            document.title = data.headline + ' — Maintenance';
-
-            el('status-label').textContent = data.status_label;
-            el('headline').textContent = data.headline;
-            el('tagline').textContent = data.tagline;
-
-            // ---- Countdown ----
-            var cdEl = el('countdown');
-            if (data.countdown_target) {
-                cdEl.dataset.target = data.countdown_target;
-                cdEl.hidden = false;
-                startCountdown(cdEl);
-            }
-
-            // ---- Progress ----
-            var pct = Math.max(0, Math.min(100, parseInt(data.progress_percent, 10) || 0));
-            if (pct > 0) {
-                el('progress-label').textContent = pct + '% Complete';
-                el('progress-label').hidden = false;
-                el('progress-bar-wrap').hidden = false;
-                el('progress-bar-fill').style.width = pct + '%';
-            }
-            el('progress-updated').textContent = 'Updated ' + formatShort(lastUpdated);
-
-            // ---- Affected services ----
-            if (Array.isArray(data.services) && data.services.length) {
-                var grid = el('services-grid');
-                data.services.forEach(function (s) {
-                    var row = document.createElement('div');
-                    row.className = 'service-row';
-
-                    var info = document.createElement('div');
-                    info.className = 'service-info';
-
-                    var name = document.createElement('div');
-                    name.className = 'service-name';
-                    name.textContent = s.name || 'Unnamed Service';
-
-                    var desc = document.createElement('div');
-                    desc.className = 'service-desc';
-                    desc.textContent = s.description || 'No description provided.';
-
-                    info.appendChild(name);
-                    info.appendChild(desc);
-
-                    var badge = document.createElement('span');
-                    badge.className = 'service-badge service-badge--' + badgeModifier(s.status);
-
-                    var dot = document.createElement('span');
-                    dot.className = 'service-badge__dot';
-                    badge.appendChild(dot);
-                    badge.appendChild(document.createTextNode(
-                        String(s.status || 'unknown').toUpperCase()
-                    ));
-
-                    row.appendChild(info);
-                    row.appendChild(badge);
-                    grid.appendChild(row);
-                });
-                el('services-section').hidden = false;
-            }
-
-            // ---- Timeline ----
-            if (Array.isArray(data.next_steps) && data.next_steps.length) {
-                var timeline = el('timeline');
-                data.next_steps.forEach(function (step) {
-                    var item = document.createElement('div');
-                    item.className = 'timeline-item';
-
-                    var content = document.createElement('div');
-                    content.className = 'timeline-item__content';
-
-                    var action = document.createElement('span');
-                    action.className = 'timeline-item__action';
-                    action.textContent = step.action || 'Pending';
-
-                    var eta = document.createElement('span');
-                    eta.className = 'timeline-item__eta';
-                    eta.textContent = 'ETA: ' + (step.eta || 'TBD');
-
-                    content.appendChild(action);
-                    content.appendChild(eta);
-                    item.appendChild(content);
-                    timeline.appendChild(item);
-                });
-                el('timeline-section').hidden = false;
-            }
-
-            // ---- Contact ----
-            var contact = el('footer-contact');
-            var emailHref = data.contact_email ? safeUrl('mailto:' + data.contact_email) : '';
-            var urlHref = data.contact_url ? safeUrl(data.contact_url) : '';
-
-            if (emailHref) {
-                var a = document.createElement('a');
-                a.href = emailHref;
-                a.textContent = data.contact_email;
-                contact.appendChild(a);
-            }
-            if (urlHref) {
-                var b = document.createElement('a');
-                b.href = urlHref;
-                b.target = '_blank';
-                b.rel = 'noopener';
-                b.textContent = 'Status Page ↗';
-                contact.appendChild(b);
-            }
-            if (emailHref || urlHref) contact.hidden = false;
-
-            el('footer-updated').textContent = 'Last updated: ' + formatLong(lastUpdated);
-
-            startAutoRefresh(Math.max(60, parseInt(data.auto_refresh_seconds, 10) || 300));
-        }
-
-        function startCountdown(cdEl) {
-            var target = new Date(cdEl.dataset.target).getTime();
-            if (isNaN(target)) return;
-
-            function tick() {
-                var diff = Math.max(0, target - Date.now());
-                var h = Math.floor(diff / 3600000);
-                var m = Math.floor((diff % 3600000) / 60000);
-                var s = Math.floor((diff % 60000) / 1000);
-                el('cd-hours').textContent = String(h).padStart(2, '0');
-                el('cd-minutes').textContent = String(m).padStart(2, '0');
-                el('cd-seconds').textContent = String(s).padStart(2, '0');
-                if (diff <= 0) location.reload();
-            }
-            tick();
-            setInterval(tick, 1000);
-        }
-
-        function startAutoRefresh(seconds) {
-            var refreshEl = el('refresh-timer');
-            var remaining = seconds;
-            refreshEl.textContent = remaining;
-            setInterval(function () {
-                remaining--;
-                refreshEl.textContent = remaining;
-                if (remaining <= 0) location.reload();
-            }, 1000);
-        }
-
-        // services.json replaces the server-side read that index.php does.
-        // Last-Modified stands in for PHP's filemtime().
-        fetch('services.json', { cache: 'no-store' })
-            .then(function (res) {
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                var lm = res.headers.get('Last-Modified');
-                var stamp = lm ? new Date(lm) : new Date();
-                if (isNaN(stamp.getTime())) stamp = new Date();
-                return res.json().then(function (json) { return [json, stamp]; });
-            })
-            .then(function (pair) {
-                var data = Object.assign({}, DEFAULTS, pair[0] || {});
-                render(data, pair[1]);
-            })
-            .catch(function () {
-                // Keep the page usable even if services.json is missing or invalid.
-                render(DEFAULTS, new Date());
-            });
-    })();
-    </script>
-
+  <script src="app.js"></script>
 </body>
 </html>
